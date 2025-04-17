@@ -22,7 +22,7 @@ public:
     }
 
     std::optional<NodeExpr> parse_expr() {
-        if (peak() && peak().value().type == TokenType::int_literal) {
+        if (peek() && peek().value().type == TokenType::int_literal) {
             return NodeExpr{.int_literal = consume()};
         }
         return {};
@@ -31,8 +31,8 @@ public:
     std::optional<NodeExit> parse() {
         std::optional<NodeExit> exit_node;
 
-        while (peak()) {
-            if (peak().value().type == TokenType::exit) {
+        while (peek()) {
+            if (peek().value().type == TokenType::exit) {
                 consume(); // consume 'exit' token
                 if (auto node_expr = parse_expr()) {
                     exit_node = NodeExit{.expr = node_expr.value()};
@@ -41,7 +41,7 @@ public:
                     exit(EXIT_FAILURE);
                 }
 
-                if (peak() && peak().value().type == TokenType::semi) {
+                if (peek() && peek().value().type == TokenType::semi) {
                     consume();
                 } else {
                     std::cerr << "Expected semicolon" << std::endl;
@@ -57,7 +57,7 @@ private:
     std::vector<Token> m_tokens;
     size_t m_index;
 
-    std::optional<Token> peak(int ahead = 0) const {
+    std::optional<Token> peek(int ahead = 0) const {
         if (m_index + ahead >= m_tokens.size()) {
             return {};
         }
