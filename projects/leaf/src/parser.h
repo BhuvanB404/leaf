@@ -75,32 +75,33 @@ public:
         {
             consume();
             consume();
-            NodeStmtExit stmt_exit ;
+            
             if (auto node_expr = parse_expr())
             {
-                stmt_exit = NodeStmtExit{.expr = node_expr.value()};
+                NodeStmtExit stmt_exit{.expr = node_expr.value()};
+                
+                if (peek().has_value() && peek().value().type == TokenType::close_paren)
+                {
+                    consume();
+                }
+                else
+                {
+                    std::cerr << "expected ')'" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                if (peek() && peek().value().type == TokenType::semi) {
+                    consume();
+                } else {
+                    std::cerr << "Expected ';'" << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+                return NodeStmt{.var = stmt_exit};
             }
             else
             {
                 std::cerr << "Error parsing expression" << std::endl;
                 exit(EXIT_FAILURE);
             }
-            if (peek().has_value() && peek().value().type == TokenType::close_paren)
-            {
-                consume();
-            }
-            else
-            {
-                std::cerr << "expected ')'" << std::endl;
-                exit(EXIT_FAILURE);
-            }
-            if (peek() && peek().value().type == TokenType::semi) {
-                consume();
-            } else {
-                std::cerr << "Expected ';'" << std::endl;
-                exit(EXIT_FAILURE);
-            }
-            return NodeStmt{.var = stmt_exit};
         }
         else if (peek().has_value() && peek().value().type == TokenType::let && peek(1).has_value()
             && peek(1).value().type == TokenType::ident
@@ -152,6 +153,7 @@ public:
             }
 
         }
+        return prog;
     }
 
 private:
