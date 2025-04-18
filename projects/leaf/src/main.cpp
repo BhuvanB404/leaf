@@ -7,45 +7,7 @@
 #include "Tokenizer.h"
 #include "parser.h"
 #include "generation.h"
-//
-// enum class TokenType {
-//     exit,
-//     int_lit,
-//     semi,
-// };
-//
-// struct Token {
-//     TokenType type;
-//     std::optional<std::string> value {};
-// };
-//
-
-
-
-// std::string tokens_to_asm(const std::vector<Token>& tokens)
-// {
-//     std::stringstream output;
-//     output << "global _start\n_start:\n";
-//     for (int i = 0; i < tokens.size(); i++)
-//     {
-//         const Token& token = tokens.at(i);
-//         if (token.type == TokenType::exit)
-//         {
-//             if (i + 1 < tokens.size() && tokens[i + 1].type == TokenType::int_literal)
-//             {
-//                 if (i + 2 < tokens.size() && tokens[i + 2].type == TokenType::semi)
-//                 {
-//                     output << "    mov rax, 60\n";
-//                     output << "    mov rdi, " << tokens.at(i + 1).value.value() << "\n";
-//                     output << "    syscall";
-//                 }
-//             }
-//         }
-//
-//     }
-//     return output.str();
-// }
-
+#include "arena.h"
 
 int main( int  argc, char* argv[])
 {

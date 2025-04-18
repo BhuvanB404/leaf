@@ -15,8 +15,26 @@ enum class TokenType
     semi,
     open_paren,
     close_paren,
+    plus,
+    minus,
+    multi,
 };
 
+
+std::optional<int> bin_preci(TokenType type)
+{
+    switch (type)
+    {
+        case TokenType::plus:
+            return 0;break;
+        case TokenType::minus:
+            return 0;break;
+        case TokenType::multi:
+            return 1;break;
+        default:
+            return {};
+    }
+}
 struct Token
 {
     TokenType type;
@@ -41,7 +59,9 @@ class Tokenizer
         std::string buf;
         while (peek().has_value())
         {
-            if (std::isalpha(peek().value()))
+            char current = peek().value();
+            
+            if (std::isalpha(current))
             {
                 buf.push_back(consume());
 
@@ -67,64 +87,74 @@ class Tokenizer
                     tokens.push_back({.type = TokenType::ident, .value = buf});
                     buf.clear();
                 }
-
-            }
-
-            else if (std::isdigit(peek().value()))
-            {
-                buf.clear();
-                buf.push_back(consume());
-                while (peek().has_value() && std::isdigit(peek().value()))
-                {
-                    buf.push_back(consume());
-                }
-
-                tokens.push_back({.type = TokenType::int_literal, .value = buf});
-                buf.clear();
-                continue;
-
-            }
-
-            else if (peek().value() == '(')
-            {
-                consume();
-                tokens.push_back({.type = TokenType::open_paren});
-            }
-
-            else if (peek().value() == ')')
-            {
-                consume();
-                tokens.push_back({.type = TokenType::close_paren});
-            }
-
-            else if(peek().value() == ';')
-            {   
-                consume();
-                tokens.push_back({.type = TokenType::semi});
-                continue;
-            }
-            else if(peek().value() == '=')
-            {
-                consume();
-                tokens.push_back({.type = TokenType::equal});
-                continue;
-            }
-
-            else if (std::isspace(peek().value()))
-            {   
-                consume();
-                continue;
             }
             else
             {
-                std::cerr << "YPU FUCKED UOP"  << std::endl;
-                exit(EXIT_FAILURE);
-            }
+                switch (current)
+                {
+                    case '0': case '1': case '2': case '3': case '4':
+                    case '5': case '6': case '7': case '8': case '9':
+                        buf.clear();
+                        buf.push_back(consume());
+                        while (peek().has_value() && std::isdigit(peek().value()))
+                        {
+                            buf.push_back(consume());
+                        }
+                        tokens.push_back({.type = TokenType::int_literal, .value = buf});
+                        buf.clear();
+                        break;
 
+                    case '(':
+                        consume();
+                        tokens.push_back({.type = TokenType::open_paren});
+                        break;
+
+                    case ')':
+                        consume();
+                        tokens.push_back({.type = TokenType::close_paren});
+                        break;
+
+                    case ';':
+                        consume();
+                        tokens.push_back({.type = TokenType::semi});
+                        break;
+
+                    case '=':
+                        consume();
+                        tokens.push_back({.type = TokenType::equal});
+                        break;
+
+                    case '+':
+                        consume();
+                        tokens.push_back({.type = TokenType::plus});
+                        break;
+
+                    case '-':
+                        consume();
+                        tokens.push_back({.type = TokenType::minus});
+                        break;
+
+                    case '*':
+                        consume();
+                        tokens.push_back({.type = TokenType::multi});
+                        break;
+
+                    default:
+                        if (std::isspace(current))
+                        {
+                            consume();
+                        }
+                        else
+                        {
+                            std::cerr << "Invalid character encountered" << std::endl;
+                            exit(EXIT_FAILURE);
+                        }
+                        break;
+                }
+            }
         }
         m_index = 0;
         return tokens;
-
     }
 
 
