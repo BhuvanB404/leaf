@@ -1,5 +1,3 @@
-
-
 #pragma once
 
 #include <vector>
@@ -11,7 +9,12 @@ enum class TokenType
 {
     exit,
     int_literal,
+    ident,
+    let,
+    equal,
     semi,
+    open_paren,
+    close_paren,
 };
 
 struct Token
@@ -42,7 +45,7 @@ class Tokenizer
             {
                 buf.push_back(consume());
 
-                while (std::isalnum(peek().value()) && peek().has_value())
+                while (peek().has_value() && std::isalnum(peek().value()))
                 {
                     buf.push_back(consume());
                 }
@@ -51,18 +54,25 @@ class Tokenizer
                 {
                     tokens.push_back({.type = TokenType::exit});
                     buf.clear();
-                    continue;
+                    // continue;
+                }
+                else if (buf == "let")
+                {
+                    tokens.push_back({.type = TokenType::let});
+                    buf.clear();
+                    // continue;
                 }
                 else
                 {
-                    std::cerr << "YOU FUCKED UP" << std::endl;
-                    exit(EXIT_FAILURE);
+                    tokens.push_back({.type = TokenType::ident, .value = buf});
+                    buf.clear();
                 }
 
             }
 
             else if (std::isdigit(peek().value()))
             {
+                buf.clear();
                 buf.push_back(consume());
                 while (peek().has_value() && std::isdigit(peek().value()))
                 {
@@ -75,14 +85,34 @@ class Tokenizer
 
             }
 
+            else if (peek().value() == '(')
+            {
+                consume();
+                tokens.push_back({.type = TokenType::open_paren});
+            }
+
+            else if (peek().value() == ')')
+            {
+                consume();
+                tokens.push_back({.type = TokenType::close_paren});
+            }
+
             else if(peek().value() == ';')
-            {   consume();
-                tokens.push_back({.type = TokenType::semi, .value = buf});
+            {   
+                consume();
+                tokens.push_back({.type = TokenType::semi});
+                continue;
+            }
+            else if(peek().value() == '=')
+            {
+                consume();
+                tokens.push_back({.type = TokenType::equal});
                 continue;
             }
 
             else if (std::isspace(peek().value()))
-            {   consume();
+            {   
+                consume();
                 continue;
             }
             else
@@ -100,15 +130,15 @@ class Tokenizer
 
     private:
 
-    [[nodiscard]] inline std::optional<char> peek(int ahead = 1) const
+    [[nodiscard]] inline std::optional<char> peek(int ahead = 0) const
     {
-        if (m_index + ahead  > m_src.length())
+        if (m_index + ahead >= m_src.length())
         {
             return std::nullopt;
         }
         else
         {
-            return m_src.at(m_index);
+            return m_src.at(m_index + ahead);
         }
     };
 inline char consume()
