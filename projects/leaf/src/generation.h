@@ -1,12 +1,15 @@
 #pragma once
 
 #include <assert.h>
-#include <unordered_map>
-
+#include <map>
+#include <string>
+#include <sstream>
+#include<format>
 #include "parser.h"
 
-class Generator {
-  public:
+class Generator
+{
+public:
 
     inline explicit Generator(NodeProg prog)
         :m_prog(std::move(prog)) {}
@@ -24,15 +27,26 @@ class Generator {
             }
             void operator()(const NodeTermIdent* term_ident) const
             {
-                if (!gen->m_vars.contains(term_ident->ident.value.value()))
+
+                auto it = std::find_if(gen->m_vars.cbegin(), gen->m_vars.cend(), [&](const Var& var)
+                {
+                    return var.name == term_ident->ident.value.value();});
+
+                if ( it == gen->m_vars.cend())
                 {
                     std::cerr << "undeclared identifier" << term_ident->ident.value.value() << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                const auto& var = gen->m_vars.at(term_ident->ident.value.value());
+
+                // const auto& var = (*it);
                 std::stringstream offset;
-                offset << "QWORD [rsp + " << (gen->m_stack - var.stack_loc - 1) * 8 << "]";
+                offset << "QWORD [rsp + " << (gen->m_stack - (*it).stack_loc - 1) * 8 << "]";
                 gen->push(offset.str());
+            }
+
+            void operator()(const NodeTermParen*  term_paren)
+            {
+                gen->generate_expr(term_paren->expr);
             }
         };
 
@@ -48,8 +62,8 @@ class Generator {
 
             void operator()(const NodeBinExprAdd* add) const
             {
-                gen->generate_expr(add->lhs);
                 gen->generate_expr(add->rhs);
+                gen->generate_expr(add->lhs);
                 gen->pop("rax");  // rhs
                 gen->pop("rbx");  // lhs
                 gen->m_output << "    add rax, rbx" << std::endl;
@@ -58,8 +72,8 @@ class Generator {
 
             void operator()(const NodeBinExprSub* sub) const
             {
-                gen->generate_expr(sub->lhs);
                 gen->generate_expr(sub->rhs);
+                gen->generate_expr(sub->lhs);
                 gen->pop("rax");  // rhs
                 gen->pop("rbx");  // lhs
                 gen->m_output << "    sub rbx, rax" << std::endl;
@@ -68,11 +82,21 @@ class Generator {
 
             void operator()(const NodeBinExprMul* mul) const
             {
-                gen->generate_expr(mul->lhs);
                 gen->generate_expr(mul->rhs);
+                gen->generate_expr(mul->lhs);
                 gen->pop("rax");  // rhs
                 gen->pop("rbx");  // lhs
                 gen->m_output << "    imul rax, rbx" << std::endl;
+                gen->push("rax");
+            }
+            void operator()(const NodeBinExprDiv* div) const
+            {
+                gen->generate_expr(div->lhs);
+                gen->generate_expr(div->rhs);
+                gen->pop("rcx");  // rhs (divisor)
+                gen->pop("rax");  // lhs (dividend)
+                gen->m_output << "    xor rdx, rdx" << std::endl;  // Clear rdx for division
+                gen->m_output << "    idiv rcx" << std::endl;  // Divide rax by rcx, result in rax
                 gen->push("rax");
             }
         };
@@ -102,6 +126,17 @@ class Generator {
         std::visit(visitor, expr->var);
     }
 
+    void generate_scope(const NodeScope* scope)
+    {
+        begin_scope();
+        for (const NodeStmt* stmt : scope->stmts)
+        {
+            generate_stmt(*stmt);
+        }
+        end_scope();
+
+    }
+
     void generate_stmt(const NodeStmt& stmt)
     {
         struct StmtVisitor
@@ -117,13 +152,40 @@ class Generator {
             }
             void operator()(const NodeStmtLet* stmt_let) const
             {
-                if(gen->m_vars.contains(stmt_let->ident.value.value()))
+                auto it = std::find_if(gen->m_vars.cbegin(), gen->m_vars.cend(), [&](const Var& var)
+                {
+                    return var.name == stmt_let->ident.value.value();});
+                if(it != gen->m_vars.cend())
                 {
                     std::cerr << "identifier already used: " << stmt_let->ident.value.value() << std::endl;
                     exit(EXIT_FAILURE);
                 }
-                gen->m_vars.insert({stmt_let->ident.value.value(), Var{gen->m_stack}});
+                gen->m_vars.push_back({stmt_let->ident.value.value(), gen->m_stack});
                 gen->generate_expr(stmt_let->expr);
+            }
+
+            void operator()(const NodeScope* scope) const
+            {
+                gen->generate_scope(scope);
+
+            }
+
+            void operator()(const NodeStmtIf* stmt_if) const
+            {
+                assert(stmt_if != nullptr);
+
+                gen->m_label_count++;
+                
+
+                gen->generate_expr(stmt_if->expr);
+                gen->pop("rax");
+                std::string label = gen->lable();
+                gen->m_output << "    test rax, rax\n";
+                gen->m_output << "    jz " << label.substr(0, label.size() - 1) << "\n";
+                gen->generate_scope(stmt_if->scope);
+                gen->m_output << label << std::endl;
+
+
             }
         };
 
@@ -132,17 +194,17 @@ class Generator {
     }
 
 
-     std::string generate_prog()
-        {
+    std::string generate_prog()
+    {
         m_output << "global _start\n_start:\n";
         for (const NodeStmt& stmt : m_prog.stmts)
         {
-             generate_stmt(stmt);
+            generate_stmt(stmt);
         }
         return m_output.str();
-        }
+    }
 
-    private:
+private:
 
     void push(const std::string& reg)
     {
@@ -156,13 +218,44 @@ class Generator {
         m_stack--;
     }
 
+    void begin_scope()
+    {
+        m_scopes.push_back(m_vars.size());
+    }
+
+    void end_scope()
+    {
+        size_t pop_count = m_vars.size() - m_scopes.back();
+        m_output << "    add rsp, "<< pop_count * 8 << std::endl;
+        m_stack -= pop_count;
+        for (int i  = 0; i < pop_count; ++i)
+        {
+            m_vars.pop_back();
+        }
+        m_scopes.pop_back();
+
+    }
+
+    std::string lable()
+    {
+        std::stringstream ss;
+        ss << "    label" << m_label_count++;
+        return ss.str() + ":";
+    }
+
     struct Var
     {
+        std::string name;
         size_t stack_loc;
     };
 
     const NodeProg m_prog;
     std::stringstream m_output;
     size_t m_stack = 0;
-    std::pmr::unordered_map<std::string, Var> m_vars{};
+
+    std::vector<Var> m_vars{};
+    std::vector<size_t> m_scopes{};
+    // std::map<std::string, Var> m_vars{};
+    size_t m_label_count = 0;
+    int m_lable_count = 0;
 };

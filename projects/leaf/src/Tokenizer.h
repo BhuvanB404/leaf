@@ -18,6 +18,10 @@ enum class TokenType
     plus,
     minus,
     multi,
+    div,
+    open_curly,
+    close_curly,
+    if_,
 };
 
 
@@ -26,10 +30,10 @@ std::optional<int> bin_preci(TokenType type)
     switch (type)
     {
         case TokenType::plus:
-            return 0;break;
         case TokenType::minus:
             return 0;break;
         case TokenType::multi:
+        case TokenType::div:
             return 1;break;
         default:
             return {};
@@ -81,6 +85,11 @@ class Tokenizer
                     tokens.push_back({.type = TokenType::let});
                     buf.clear();
                     // continue;
+                }
+                else if (buf == "if")
+                {
+                    tokens.push_back({.type = TokenType::if_});
+                    buf.clear();
                 }
                 else
                 {
@@ -138,6 +147,19 @@ class Tokenizer
                         consume();
                         tokens.push_back({.type = TokenType::multi});
                         break;
+
+                    case '/':
+                        consume();
+                        tokens.push_back({.type = TokenType::div});
+                        break;
+                    case '{':
+                        consume();
+                    tokens.push_back({.type = TokenType::open_curly});
+                        break;
+                    case '}':
+                        consume();
+                    tokens.push_back({.type = TokenType::close_curly});
+                    break;
 
                     default:
                         if (std::isspace(current))
