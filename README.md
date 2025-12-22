@@ -9,7 +9,7 @@ Prerequisites
 
 Quick start
 
-Clone the repository (if you haven't already):
+Clone the repository :
 
 ```bash
 git clone https://github.com/BhuvanB404/leaf.git
@@ -18,7 +18,7 @@ cd leaf
 
 Build
 
-Compile the compiler driver (single-file build):
+Compile the compiler driver :
 
 ```bash
 g++ -std=c++17 -O2 -I src -o leaf src/main.cpp
@@ -38,9 +38,6 @@ make run
 make clean  
 ```
 
-If there is no `Makefile`, the single-file `g++` command shown above will compile `src/main.cpp` directly.
-
-Run the example
 
 Create a minimal input file `example.hy` with a single exit statement:
 
