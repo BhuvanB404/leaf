@@ -50,7 +50,6 @@ Then run:
 ```bash
 ./leaf example.hy
 
-# outputs executables out 
 ./out
 ```
 
